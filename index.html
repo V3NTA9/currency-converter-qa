@@ -58,79 +58,84 @@
     </div>
 
     <script>
-        // API URL (бесплатный, без ключа)
-        const API_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.exchangerate.host/latest');
+    // API URL (без прокси, поддерживает CORS)
+    const API_URL = 'https://api.frankfurter.app/latest';
 
-        // Элементы DOM
-        const fromSelect = document.getElementById('fromCurrency');
-        const toSelect = document.getElementById('toCurrency');
-        const amountInput = document.getElementById('amount');
-        const convertBtn = document.getElementById('convertBtn');
-        const resultDiv = document.getElementById('result');
+    const fromSelect = document.getElementById('fromCurrency');
+    const toSelect = document.getElementById('toCurrency');
+    const amountInput = document.getElementById('amount');
+    const convertBtn = document.getElementById('convertBtn');
+    const resultDiv = document.getElementById('result');
 
-        let rates = {}; // объект для хранения курсов
+    let rates = {};
 
-        // Загрузка списка валют и курсов
-        async function loadCurrencies() {
-            try {
-                const response = await fetch(API_URL);
-                const data = await response.json();
-                rates = data.rates;
-                const currencies = Object.keys(rates);
+    async function loadCurrencies() {
+        try {
+            const response = await fetch(API_URL);
+            const data = await response.json();
+            rates = data.rates;
+            // Добавляем базовую валюту (EUR) в список
+            const currencies = Object.keys(rates);
+            currencies.push('EUR');
+            currencies.sort();
+            
+            currencies.forEach(currency => {
+                const optionFrom = document.createElement('option');
+                optionFrom.value = currency;
+                optionFrom.text = currency;
+                fromSelect.appendChild(optionFrom);
                 
-                // Заполняем выпадающие списки
-                currencies.forEach(currency => {
-                    const optionFrom = document.createElement('option');
-                    optionFrom.value = currency;
-                    optionFrom.text = currency;
-                    fromSelect.appendChild(optionFrom);
-                    
-                    const optionTo = document.createElement('option');
-                    optionTo.value = currency;
-                    optionTo.text = currency;
-                    toSelect.appendChild(optionTo);
-                });
-                
-                // Устанавливаем значения по умолчанию
-                fromSelect.value = 'USD';
-                toSelect.value = 'EUR';
-            } catch (error) {
-                resultDiv.textContent = 'Ошибка загрузки курсов валют. Проверьте подключение к интернету.';
-                console.error(error);
-            }
+                const optionTo = document.createElement('option');
+                optionTo.value = currency;
+                optionTo.text = currency;
+                toSelect.appendChild(optionTo);
+            });
+            
+            fromSelect.value = 'USD';
+            toSelect.value = 'EUR';
+        } catch (error) {
+            resultDiv.textContent = 'Ошибка загрузки курсов валют. Проверьте подключение к интернету.';
+            console.error(error);
         }
+    }
 
-        // Конвертация
-        function convert() {
-            const amount = parseFloat(amountInput.value);
-            const from = fromSelect.value;
-            const to = toSelect.value;
-            
-            if (isNaN(amount)) {
-                resultDiv.textContent = 'Введите корректную сумму';
-                return;
-            }
-            
-            if (!rates[from] || !rates[to]) {
-                resultDiv.textContent = 'Курсы валют ещё не загружены';
-                return;
-            }
-            
-            // Конвертация через базовую валюту (EUR, так как API возвращает курсы к EUR)
-            // сумма в EUR = amount / rates[from]
-            // затем в to = (amount / rates[from]) * rates[to]
-            const amountInEUR = amount / rates[from];
-            const converted = amountInEUR * rates[to];
-            
-            resultDiv.textContent = `${amount} ${from} = ${converted.toFixed(2)} ${to}`;
+    function convert() {
+        const amount = parseFloat(amountInput.value);
+        const from = fromSelect.value;
+        const to = toSelect.value;
+        
+        if (isNaN(amount)) {
+            resultDiv.textContent = 'Введите корректную сумму';
+            return;
         }
+        
+        if (!rates[from] && from !== 'EUR') {
+            resultDiv.textContent = 'Курсы валют ещё не загружены';
+            return;
+        }
+        
+        // Конвертация: если from == EUR, то amountInEUR = amount
+        let amountInEUR;
+        if (from === 'EUR') {
+            amountInEUR = amount;
+        } else {
+            amountInEUR = amount / rates[from];
+        }
+        
+        let converted;
+        if (to === 'EUR') {
+            converted = amountInEUR;
+        } else {
+            converted = amountInEUR * rates[to];
+        }
+        
+        resultDiv.textContent = `${amount} ${from} = ${converted.toFixed(2)} ${to}`;
+    }
 
-        // Инициализация
-        loadCurrencies().then(() => {
-            convertBtn.addEventListener('click', convert);
-            // Первая конвертация при загрузке
-            convert();
-        });
-    </script>
+    loadCurrencies().then(() => {
+        convertBtn.addEventListener('click', convert);
+        convert();
+    });
+</script>
 </body>
 </html>
