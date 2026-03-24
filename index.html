@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Конвертер валют | V3NTA9</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f4f4f4;
+        }
+        .converter {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="converter">
+        <h2>Конвертер валют</h2>
+        <input type="number" id="amount" placeholder="Сумма" value="1">
+        
+        <label>Из валюты:</label>
+        <select id="fromCurrency"></select>
+        
+        <label>В валюту:</label>
+        <select id="toCurrency"></select>
+        
+        <button id="convertBtn">Конвертировать</button>
+        
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        // API URL (бесплатный, без ключа)
+        const API_URL = 'https://api.exchangerate.host/latest';
+
+        // Элементы DOM
+        const fromSelect = document.getElementById('fromCurrency');
+        const toSelect = document.getElementById('toCurrency');
+        const amountInput = document.getElementById('amount');
+        const convertBtn = document.getElementById('convertBtn');
+        const resultDiv = document.getElementById('result');
+
+        let rates = {}; // объект для хранения курсов
+
+        // Загрузка списка валют и курсов
+        async function loadCurrencies() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                rates = data.rates;
+                const currencies = Object.keys(rates);
+                
+                // Заполняем выпадающие списки
+                currencies.forEach(currency => {
+                    const optionFrom = document.createElement('option');
+                    optionFrom.value = currency;
+                    optionFrom.text = currency;
+                    fromSelect.appendChild(optionFrom);
+                    
+                    const optionTo = document.createElement('option');
+                    optionTo.value = currency;
+                    optionTo.text = currency;
+                    toSelect.appendChild(optionTo);
+                });
+                
+                // Устанавливаем значения по умолчанию
+                fromSelect.value = 'USD';
+                toSelect.value = 'EUR';
+            } catch (error) {
+                resultDiv.textContent = 'Ошибка загрузки курсов валют. Проверьте подключение к интернету.';
+                console.error(error);
+            }
+        }
+
+        // Конвертация
+        function convert() {
+            const amount = parseFloat(amountInput.value);
+            const from = fromSelect.value;
+            const to = toSelect.value;
+            
+            if (isNaN(amount)) {
+                resultDiv.textContent = 'Введите корректную сумму';
+                return;
+            }
+            
+            if (!rates[from] || !rates[to]) {
+                resultDiv.textContent = 'Курсы валют ещё не загружены';
+                return;
+            }
+            
+            // Конвертация через базовую валюту (EUR, так как API возвращает курсы к EUR)
+            // сумма в EUR = amount / rates[from]
+            // затем в to = (amount / rates[from]) * rates[to]
+            const amountInEUR = amount / rates[from];
+            const converted = amountInEUR * rates[to];
+            
+            resultDiv.textContent = `${amount} ${from} = ${converted.toFixed(2)} ${to}`;
+        }
+
+        // Инициализация
+        loadCurrencies().then(() => {
+            convertBtn.addEventListener('click', convert);
+            // Первая конвертация при загрузке
+            convert();
+        });
+    </script>
+</body>
+</html>
