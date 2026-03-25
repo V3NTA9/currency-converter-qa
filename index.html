@@ -5,15 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Конвертер валют | V3NTA9</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; background: #f4f4f4; }
-        .converter { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        input, select, button { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; box-sizing: border-box; }
-        button { background: #007bff; color: white; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        .result { margin-top: 20px; font-size: 18px; text-align: center; font-weight: bold; }
-        .button-group { display: flex; gap: 10px; }
-        .button-group button { flex: 1; }
-        .status { font-size: 12px; color: #666; text-align: center; margin-top: 10px; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f4f4f4;
+        }
+        .converter {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .button-group button {
+            flex: 1;
+        }
+        .status {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -37,8 +77,8 @@
     </div>
 
     <script>
-        // Правильный API — exchangerate.host, с поддержкой CORS
-        const API_URL = 'https://api.exchangerate.host/latest?base=USD&_=' + Date.now();
+        // API: бесплатный, без ключа, курсы относительно USD (включает RUB)
+        const API_URL = 'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/usd.json?_=' + Date.now();
 
         const fromSelect = document.getElementById('fromCurrency');
         const toSelect = document.getElementById('toCurrency');
@@ -57,17 +97,17 @@
             currencies.sort().forEach(currency => {
                 const optionFrom = document.createElement('option');
                 optionFrom.value = currency;
-                optionFrom.text = currency;
+                optionFrom.text = currency.toUpperCase();
                 fromSelect.appendChild(optionFrom);
                 
                 const optionTo = document.createElement('option');
                 optionTo.value = currency;
-                optionTo.text = currency;
+                optionTo.text = currency.toUpperCase();
                 toSelect.appendChild(optionTo);
             });
             
-            fromSelect.value = 'USD';
-            toSelect.value = 'EUR';
+            fromSelect.value = 'usd';
+            toSelect.value = 'eur';
         }
 
         async function loadCurrencies() {
@@ -79,10 +119,12 @@
                 if (!response.ok) throw new Error('Ошибка HTTP: ' + response.status);
                 const data = await response.json();
                 
-                if (!data.rates) throw new Error('Некорректный ответ API');
+                // API возвращает курсы относительно USD в виде объекта usd: { eur: ..., rub: ..., etc }
+                if (!data.usd) throw new Error('Некорректный ответ API');
                 
-                rates = data.rates;
-                rates.USD = 1;
+                // Преобразуем в формат rates, где ключ — валюта, значение — курс к USD
+                rates = data.usd;
+                rates.usd = 1; // добавляем курс USD к самому себе
                 
                 const currencies = Object.keys(rates);
                 populateCurrencyLists(currencies);
@@ -111,8 +153,9 @@
                 return;
             }
             
-            const converted = (amount / rates[from]) * rates[to];
-            resultDiv.textContent = `${amount} ${from} = ${converted.toFixed(4)} ${to}`;
+            // Конвертация: amount * (курс to / курс from)
+            const converted = amount * (rates[to] / rates[from]);
+            resultDiv.textContent = `${amount} ${from.toUpperCase()} = ${converted.toFixed(4)} ${to.toUpperCase()}`;
         }
 
         async function refreshRates() {
