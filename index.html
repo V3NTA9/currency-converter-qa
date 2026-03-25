@@ -5,47 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Конвертер валют | V3NTA9</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 500px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #f4f4f4;
-        }
-        .converter {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        input, select, button {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        .result {
-            margin-top: 20px;
-            font-size: 18px;
-            text-align: center;
-        }
-        .button-group {
-            display: flex;
-            gap: 10px;
-        }
-        .button-group button {
-            flex: 1;
-        }
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; background: #f4f4f4; }
+        .converter { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        input, select, button { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; box-sizing: border-box; }
+        button { background: #007bff; color: white; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; font-size: 18px; text-align: center; font-weight: bold; }
+        .button-group { display: flex; gap: 10px; }
+        .button-group button { flex: 1; }
+        .status { font-size: 12px; color: #666; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -65,11 +33,12 @@
         </div>
         
         <div class="result" id="result"></div>
+        <div class="status" id="status"></div>
     </div>
 
     <script>
-        // API URL (Frankfurter, поддерживает CORS)
-        const API_URL = 'https://api.frankfurter.app/latest';
+        // Правильный API — exchangerate.host, с поддержкой CORS
+        const API_URL = 'https://api.exchangerate.host/latest?base=USD&_=' + Date.now();
 
         const fromSelect = document.getElementById('fromCurrency');
         const toSelect = document.getElementById('toCurrency');
@@ -77,83 +46,86 @@
         const convertBtn = document.getElementById('convertBtn');
         const refreshBtn = document.getElementById('refreshBtn');
         const resultDiv = document.getElementById('result');
+        const statusDiv = document.getElementById('status');
 
         let rates = {};
 
-        // Очистка списков валют
-        function clearCurrencyLists() {
+        function populateCurrencyLists(currencies) {
             fromSelect.innerHTML = '';
             toSelect.innerHTML = '';
+            
+            currencies.sort().forEach(currency => {
+                const optionFrom = document.createElement('option');
+                optionFrom.value = currency;
+                optionFrom.text = currency;
+                fromSelect.appendChild(optionFrom);
+                
+                const optionTo = document.createElement('option');
+                optionTo.value = currency;
+                optionTo.text = currency;
+                toSelect.appendChild(optionTo);
+            });
+            
+            fromSelect.value = 'USD';
+            toSelect.value = 'EUR';
         }
 
-        // Загрузка курсов и заполнение списков
         async function loadCurrencies() {
+            statusDiv.textContent = 'Загрузка курсов...';
+            resultDiv.textContent = '';
+            
             try {
                 const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('Ошибка HTTP: ' + response.status);
                 const data = await response.json();
+                
+                if (!data.rates) throw new Error('Некорректный ответ API');
+                
                 rates = data.rates;
+                rates.USD = 1;
+                
                 const currencies = Object.keys(rates);
-                currencies.sort();
-
-                clearCurrencyLists();
-
-                currencies.forEach(currency => {
-                    const optionFrom = document.createElement('option');
-                    optionFrom.value = currency;
-                    optionFrom.text = currency;
-                    fromSelect.appendChild(optionFrom);
-
-                    const optionTo = document.createElement('option');
-                    optionTo.value = currency;
-                    optionTo.text = currency;
-                    toSelect.appendChild(optionTo);
-                });
-
-                fromSelect.value = 'USD';
-                toSelect.value = 'EUR';
-                resultDiv.textContent = 'Курсы обновлены.';
+                populateCurrencyLists(currencies);
+                
+                statusDiv.textContent = `Курсы обновлены (${currencies.length} валют)`;
+                convert();
             } catch (error) {
+                console.error('Ошибка:', error);
+                statusDiv.textContent = 'Ошибка загрузки';
                 resultDiv.textContent = 'Ошибка загрузки курсов валют. Проверьте подключение к интернету.';
-                console.error(error);
             }
         }
 
-        // Конвертация
         function convert() {
             const amount = parseFloat(amountInput.value);
             const from = fromSelect.value;
             const to = toSelect.value;
-
+            
             if (isNaN(amount)) {
                 resultDiv.textContent = 'Введите корректную сумму';
                 return;
             }
-
+            
             if (!rates[from] || !rates[to]) {
                 resultDiv.textContent = 'Курсы валют ещё не загружены. Нажмите "Обновить курсы".';
                 return;
             }
-
-            // Конвертация через базовую валюту (EUR, так как API возвращает курсы к EUR)
-            const amountInEUR = amount / rates[from];
-            const converted = amountInEUR * rates[to];
-
-            resultDiv.textContent = `${amount} ${from} = ${converted.toFixed(2)} ${to}`;
+            
+            const converted = (amount / rates[from]) * rates[to];
+            resultDiv.textContent = `${amount} ${from} = ${converted.toFixed(4)} ${to}`;
         }
 
-        // Обновление курсов (повторная загрузка)
         async function refreshRates() {
-            resultDiv.textContent = 'Обновление курсов...';
             await loadCurrencies();
-            convert(); // после обновления автоматически пересчитать
         }
 
         // Инициализация
-        loadCurrencies().then(() => {
-            convertBtn.addEventListener('click', convert);
-            refreshBtn.addEventListener('click', refreshRates);
-            convert();
-        });
+        loadCurrencies();
+        convertBtn.addEventListener('click', convert);
+        refreshBtn.addEventListener('click', refreshRates);
+        amountInput.addEventListener('input', convert);
+        fromSelect.addEventListener('change', convert);
+        toSelect.addEventListener('change', convert);
     </script>
 </body>
 </html>
