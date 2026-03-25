@@ -43,22 +43,23 @@
 </head>
 <body>
     <div class="converter">
-        <h2>Конвертер валют</h2>
-        <input type="number" id="amount" placeholder="Сумма" value="1">
-        
-        <label>Из валюты:</label>
-        <select id="fromCurrency"></select>
-        
-        <label>В валюту:</label>
-        <select id="toCurrency"></select>
-        
-        <button id="convertBtn">Конвертировать</button>
-        
-        <div class="result" id="result"></div>
-    </div>
+    <h2>Конвертер валют</h2>
+    <input type="number" id="amount" placeholder="Сумма" value="1">
+    
+    <label>Из валюты:</label>
+    <select id="fromCurrency"></select>
+    
+    <label>В валюту:</label>
+    <select id="toCurrency"></select>
+    
+    <button id="convertBtn">Конвертировать</button>
+    <button id="refreshBtn">Обновить курсы</button>
+    
+    <div class="result" id="result"></div>
+</div>
 
     <script>
-    // API URL (без прокси, поддерживает CORS)
+    // API URL (Frankfurter, поддерживает CORS)
     const API_URL = 'https://api.frankfurter.app/latest';
 
     const fromSelect = document.getElementById('fromCurrency');
@@ -66,74 +67,80 @@
     const amountInput = document.getElementById('amount');
     const convertBtn = document.getElementById('convertBtn');
     const resultDiv = document.getElementById('result');
-
     let rates = {};
 
+    // Очистка списков валют
+    function clearCurrencyLists() {
+        fromSelect.innerHTML = '';
+        toSelect.innerHTML = '';
+    }
+
+    // Загрузка курсов и заполнение списков
     async function loadCurrencies() {
         try {
             const response = await fetch(API_URL);
             const data = await response.json();
             rates = data.rates;
-            // Добавляем базовую валюту (EUR) в список
             const currencies = Object.keys(rates);
-            currencies.push('EUR');
             currencies.sort();
-            
+
+            clearCurrencyLists();
+
             currencies.forEach(currency => {
                 const optionFrom = document.createElement('option');
                 optionFrom.value = currency;
                 optionFrom.text = currency;
                 fromSelect.appendChild(optionFrom);
-                
+
                 const optionTo = document.createElement('option');
                 optionTo.value = currency;
                 optionTo.text = currency;
                 toSelect.appendChild(optionTo);
             });
-            
+
             fromSelect.value = 'USD';
             toSelect.value = 'EUR';
+            resultDiv.textContent = 'Курсы обновлены.';
         } catch (error) {
             resultDiv.textContent = 'Ошибка загрузки курсов валют. Проверьте подключение к интернету.';
             console.error(error);
         }
     }
 
+    // Конвертация
     function convert() {
         const amount = parseFloat(amountInput.value);
         const from = fromSelect.value;
         const to = toSelect.value;
-        
+
         if (isNaN(amount)) {
             resultDiv.textContent = 'Введите корректную сумму';
             return;
         }
-        
-        if (!rates[from] && from !== 'EUR') {
-            resultDiv.textContent = 'Курсы валют ещё не загружены';
+
+        if (!rates[from] || !rates[to]) {
+            resultDiv.textContent = 'Курсы валют ещё не загружены. Нажмите "Обновить курсы".';
             return;
         }
-        
-        // Конвертация: если from == EUR, то amountInEUR = amount
-        let amountInEUR;
-        if (from === 'EUR') {
-            amountInEUR = amount;
-        } else {
-            amountInEUR = amount / rates[from];
-        }
-        
-        let converted;
-        if (to === 'EUR') {
-            converted = amountInEUR;
-        } else {
-            converted = amountInEUR * rates[to];
-        }
-        
+
+        const amountInEUR = amount / rates[from];
+        const converted = amountInEUR * rates[to];
         resultDiv.textContent = `${amount} ${from} = ${converted.toFixed(2)} ${to}`;
     }
 
+    // Обновление курсов (повторная загрузка)
+    async function refreshRates() {
+        resultDiv.textContent = 'Обновление курсов...';
+        await loadCurrencies();
+        convert(); // после обновления автоматически пересчитать
+    }
+
+    // Инициализация и обработчики
     loadCurrencies().then(() => {
         convertBtn.addEventListener('click', convert);
+        // добавляем обработчик для новой кнопки
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) refreshBtn.addEventListener('click', refreshRates);
         convert();
     });
 </script>
