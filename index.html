@@ -77,8 +77,8 @@
     </div>
 
     <script>
-        // API: бесплатный, без ключа, курсы относительно USD (включает RUB)
-        const API_URL = 'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/usd.json?_=' + Date.now();
+        // Рабочий API: курсы валют относительно USD
+        const API_URL = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json?_=' + Date.now();
 
         const fromSelect = document.getElementById('fromCurrency');
         const toSelect = document.getElementById('toCurrency');
@@ -116,13 +116,12 @@
             
             try {
                 const response = await fetch(API_URL);
-                if (!response.ok) throw new Error('Ошибка HTTP: ' + response.status);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 
-                // API возвращает курсы относительно USD в виде объекта usd: { eur: ..., rub: ..., etc }
+                // API возвращает { "usd": { "eur": 0.92, "rub": 85.5, ... } }
                 if (!data.usd) throw new Error('Некорректный ответ API');
                 
-                // Преобразуем в формат rates, где ключ — валюта, значение — курс к USD
                 rates = data.usd;
                 rates.usd = 1; // добавляем курс USD к самому себе
                 
@@ -153,7 +152,6 @@
                 return;
             }
             
-            // Конвертация: amount * (курс to / курс from)
             const converted = amount * (rates[to] / rates[from]);
             resultDiv.textContent = `${amount} ${from.toUpperCase()} = ${converted.toFixed(4)} ${to.toUpperCase()}`;
         }
