@@ -219,7 +219,7 @@
             margin-top: 12px;
         }
 
-        /* ===== АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ (ПОРТРЕТ) ===== */
+        /* ===== АДАПТИВНОСТЬ ===== */
         @media (max-width: 768px) {
             .converter-card {
                 max-width: 95%;
@@ -270,7 +270,7 @@
             }
         }
 
-        /* Для планшетов (вертикальная и горизонтальная ориентация) */
+        /* Планшеты вертикально */
         @media (min-width: 768px) and (max-width: 1024px) {
             .converter-card {
                 max-width: 600px;
@@ -278,7 +278,7 @@
             }
         }
 
-        /* Для iPad Pro и Surface Pro 7 (большие планшеты) — увеличиваем карточку */
+        /* Большие планшеты (iPad Pro, Surface) */
         @media (min-width: 1024px) and (max-width: 1366px) {
             .converter-card {
                 max-width: 640px;
@@ -286,7 +286,7 @@
             }
         }
 
-        /* Ландшафтная ориентация на мобильных (ширина < 768px) — компактный режим */
+        /* Ландшафтная ориентация на мобильных — компактный режим */
         @media (max-width: 768px) and (orientation: landscape) {
             .converter-card {
                 max-width: 90%;
@@ -312,51 +312,7 @@
             }
         }
 
-        /* Для очень маленьких экранов по высоте */
-        @media (max-height: 700px) {
-            .converter-card {
-                padding: 16px 20px;
-            }
-            .header {
-                margin-bottom: 16px;
-            }
-            .input-group {
-                margin-bottom: 12px;
-            }
-            .button-group {
-                margin: 16px 0 12px;
-            }
-            .result {
-                margin: 12px 0 8px;
-                padding: 10px 10px;
-            }
-            .status {
-                margin-top: 6px;
-            }
-        }
-
-        @media (max-height: 600px) {
-            .logo {
-                width: 40px;
-                height: 40px;
-            }
-            .title {
-                font-size: 1.2rem;
-            }
-            .converter-card {
-                padding: 12px 16px;
-            }
-            input, select {
-                padding: 8px 12px;
-                font-size: 0.85rem;
-            }
-            button {
-                padding: 6px 6px;
-                font-size: 0.75rem;
-            }
-        }
-
-        /* Ландшафтная ориентация с малой высотой (дополнительная оптимизация) */
+        /* Дополнительная оптимизация для очень низких экранов в ландшафте */
         @media (max-width: 768px) and (orientation: landscape) and (max-height: 500px) {
             .converter-card {
                 padding: 10px 16px;
@@ -386,7 +342,7 @@
     </style>
 </head>
 <body>
-    <!-- SVG фильтр для устранения полос в градиенте — будет удалён на мобильных через JS -->
+    <!-- SVG фильтр -->
     <svg width="0" height="0" aria-hidden="true" style="position: fixed">
         <filter id="grain" color-interpolation-filters="sRGB" x="0" y="0" width="1" height="1">
             <feTurbulence type="fractalNoise" baseFrequency="0.9713" numOctaves="4"/>
@@ -434,48 +390,33 @@
     </div>
 
     <script>
-        // === АДАПТИВНАЯ НАСТРОЙКА ЧАСТИЦ И ФИЛЬТРА ===
         (function() {
             const canvas = document.getElementById('bg-canvas');
             const ctx = canvas.getContext('2d');
             let width, height;
             let mouseX = 0, mouseY = 0;
             let time = 0;
-            
-            // Параметры, которые будут переопределяться под ширину экрана
-            let PARTICLE_COUNT = 40;
-            let DUST_COUNT = 220;
-            let GRAPH_POINTS = 70;
-            let USE_GRAIN_FILTER = true;
-            
-            function updateMobileSettings() {
-                const isMobile = window.innerWidth <= 768;
-                if (isMobile) {
-                    PARTICLE_COUNT = 24;
-                    DUST_COUNT = 100;
-                    GRAPH_POINTS = 40;
-                    USE_GRAIN_FILTER = false;
-                } else {
-                    PARTICLE_COUNT = 40;
-                    DUST_COUNT = 220;
-                    GRAPH_POINTS = 70;
-                    USE_GRAIN_FILTER = true;
-                }
-                // Применяем/удаляем фильтр
-                const grainLayer = document.getElementById('grainLayer');
-                if (grainLayer) {
-                    if (USE_GRAIN_FILTER) {
-                        grainLayer.style.filter = "url(#grain)";
-                    } else {
-                        grainLayer.style.filter = "none";
-                    }
-                }
+            let resizeTimer = null;
+
+            // Определяем, является ли устройство мобильным (ширина ≤ 768px)
+            const isMobile = () => window.innerWidth <= 768;
+
+            // Параметры
+            let PARTICLE_COUNT = isMobile() ? 20 : 40;
+            let DUST_COUNT = isMobile() ? 120 : 220;
+            let GRAPH_POINTS = isMobile() ? 40 : 70;
+            let USE_GRAIN_FILTER = !isMobile();
+
+            // Применяем фильтр
+            const grainLayer = document.getElementById('grainLayer');
+            if (grainLayer) {
+                grainLayer.style.filter = USE_GRAIN_FILTER ? "url(#grain)" : "none";
             }
-            
+
             // --- ЗОЛОТЫЕ СИМВОЛЫ ---
             const currencySymbols = ['$', '€', '£', '¥', '₽', '₿', '¢', '₩'];
             let particles = [];
-            
+
             class GoldParticle {
                 constructor(x, y) {
                     this.x = x;
@@ -489,32 +430,35 @@
                     this.rotation = Math.random() * Math.PI * 2;
                     this.rotSpeed = (Math.random() - 0.5) * 0.01;
                 }
-                
+
                 update() {
                     this.x += this.vx;
                     this.y += this.vy;
                     this.rotation += this.rotSpeed;
-                    
-                    const dx = this.x - mouseX;
-                    const dy = this.y - mouseY;
-                    const dist = Math.hypot(dx, dy);
-                    if (dist < 120 && mouseX > 0 && mouseY > 0) {
-                        const angle = Math.atan2(dy, dx);
-                        const force = (1 - dist / 120) * 1.0;
-                        this.vx += Math.cos(angle) * force * 0.2;
-                        this.vy += Math.sin(angle) * force * 0.2;
+
+                    // Отталкивание от мыши ТОЛЬКО на десктопе (не на мобильных)
+                    if (!isMobile() && mouseX > 0 && mouseY > 0) {
+                        const dx = this.x - mouseX;
+                        const dy = this.y - mouseY;
+                        const dist = Math.hypot(dx, dy);
+                        if (dist < 120) {
+                            const angle = Math.atan2(dy, dx);
+                            const force = (1 - dist / 120) * 1.0;
+                            this.vx += Math.cos(angle) * force * 0.2;
+                            this.vy += Math.sin(angle) * force * 0.2;
+                        }
                     }
-                    
+
                     if (this.x < 40) { this.x = 40; this.vx = -this.vx * 0.8; }
                     if (this.x > width - 40) { this.x = width - 40; this.vx = -this.vx * 0.8; }
                     if (this.y < 40) { this.y = 40; this.vy = -this.vy * 0.8; }
                     if (this.y > height - 40) { this.y = height - 40; this.vy = -this.vy * 0.8; }
-                    
+
                     this.vx *= 0.998;
                     this.vy *= 0.998;
                     this.glow = 0.5 + Math.sin(time * 0.002 + this.x) * 0.3;
                 }
-                
+
                 draw() {
                     ctx.save();
                     ctx.translate(this.x, this.y);
@@ -522,7 +466,7 @@
                     ctx.font = `${this.size}px monospace`;
                     ctx.shadowBlur = 15;
                     ctx.shadowColor = `rgba(230, 180, 80, ${this.glow * 0.8})`;
-                    
+
                     const grad = ctx.createLinearGradient(-this.size/2, -this.size/4, this.size/2, this.size/4);
                     grad.addColorStop(0, '#f5c542');
                     grad.addColorStop(0.6, '#e6b422');
@@ -533,7 +477,7 @@
                     ctx.restore();
                 }
             }
-            
+
             function initParticles() {
                 particles = [];
                 for (let i = 0; i < PARTICLE_COUNT; i++) {
@@ -543,10 +487,10 @@
                     ));
                 }
             }
-            
+
             // --- ЗОЛОТАЯ ПЫЛЬ ---
             let dust = [];
-            
+
             class DustParticle {
                 constructor(x, y) {
                     this.x = x;
@@ -557,25 +501,25 @@
                     this.alpha = 0.15 + Math.random() * 0.3;
                     this.pulseSpeed = 0.0015 + Math.random() * 0.003;
                 }
-                
+
                 update() {
                     this.x += this.vx;
                     this.y += this.vy;
-                    
+
                     if (this.x < 0) this.x = width;
                     if (this.x > width) this.x = 0;
                     if (this.y < 0) this.y = height;
                     if (this.y > height) this.y = 0;
-                    
+
                     this.alpha = 0.2 + Math.sin(time * this.pulseSpeed + this.x) * 0.12;
                 }
-                
+
                 draw() {
                     ctx.fillStyle = `rgba(230, 170, 70, ${this.alpha})`;
                     ctx.fillRect(this.x, this.y, this.size, this.size);
                 }
             }
-            
+
             function initDust() {
                 dust = [];
                 for (let i = 0; i < DUST_COUNT; i++) {
@@ -585,10 +529,10 @@
                     ));
                 }
             }
-            
+
             // --- ГРАФИК ---
             let graphPoints = [];
-            
+
             function initGraph() {
                 graphPoints = [];
                 for (let i = 0; i <= GRAPH_POINTS; i++) {
@@ -601,7 +545,7 @@
                     });
                 }
             }
-            
+
             function drawGraph() {
                 if (graphPoints.length === 0) return;
                 ctx.beginPath();
@@ -614,7 +558,7 @@
                 ctx.strokeStyle = 'rgba(230, 170, 70, 0.45)';
                 ctx.lineWidth = 1.3;
                 ctx.stroke();
-                
+
                 ctx.beginPath();
                 ctx.moveTo(graphPoints[0].x, graphPoints[0].y + 2);
                 for (let i = 1; i < graphPoints.length; i++) {
@@ -626,12 +570,12 @@
                 ctx.lineWidth = 1;
                 ctx.stroke();
             }
-            
+
             // --- АНИМАЦИЯ ---
             function animate() {
                 if (!width || !height) return;
                 ctx.clearRect(0, 0, width, height);
-                
+
                 for (let d of dust) {
                     d.update();
                     d.draw();
@@ -641,38 +585,65 @@
                     p.draw();
                 }
                 drawGraph();
-                
+
                 time++;
                 requestAnimationFrame(animate);
             }
-            
-            // --- ПЕРЕСЧЁТ ПРИ ИЗМЕНЕНИИ РАЗМЕРА ---
-            function resizeCanvas() {
-                width = window.innerWidth;
-                height = window.innerHeight;
-                canvas.width = width;
-                canvas.height = height;
-                
-                updateMobileSettings();   // обновляем настройки под новую ширину
-                initParticles();
-                initDust();
-                initGraph();
+
+            // --- ПЕРЕСЧЁТ ПРИ ИЗМЕНЕНИИ РАЗМЕРА С ЗАЩИТОЙ ОТ ЧАСТЫХ ВЫЗОВОВ ---
+            function handleResize() {
+                if (resizeTimer) clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    width = window.innerWidth;
+                    height = window.innerHeight;
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    // Обновляем параметры под новую ширину (возможно, сменилась ориентация)
+                    const newMobile = isMobile();
+                    PARTICLE_COUNT = newMobile ? 20 : 40;
+                    DUST_COUNT = newMobile ? 120 : 220;
+                    GRAPH_POINTS = newMobile ? 40 : 70;
+                    USE_GRAIN_FILTER = !newMobile;
+                    if (grainLayer) {
+                        grainLayer.style.filter = USE_GRAIN_FILTER ? "url(#grain)" : "none";
+                    }
+
+                    initParticles();
+                    initDust();
+                    initGraph();
+                }, 150);
             }
-            
-            window.addEventListener('resize', resizeCanvas);
+
+            window.addEventListener('resize', handleResize);
             window.addEventListener('mousemove', (e) => {
-                mouseX = e.clientX;
-                mouseY = e.clientY;
+                if (!isMobile()) {
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                }
             });
             window.addEventListener('mouseleave', () => {
                 mouseX = -1000;
                 mouseY = -1000;
             });
-            
-            resizeCanvas();
+            // На мобильных не используем touchmove для производительности
+            if (!isMobile()) {
+                window.addEventListener('touchmove', (e) => {
+                    // ничего не делаем
+                });
+            }
+
+            // Инициализация
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            initParticles();
+            initDust();
+            initGraph();
             animate();
         })();
-        
+
         // === КОНВЕРТЕР ВАЛЮТ ===
         const API_URL = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json?_=' + Date.now();
         const fromSelect = document.getElementById('fromCurrency');
